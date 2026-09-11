@@ -1,0 +1,18 @@
+JOB ORDER — TGMTI
+Generated: 9/10/2026, 6:22:57 PM
+Records: 1
+================================================
+
+JO Number:               JO-0009
+Customer Name:           Plaza de Zamboanga Hotel and Casino
+Serial Number:           BD0BE4ERDF72E99
+Requested By:            nila
+Assigned Technician:     Bryan
+Date of Request:         Sep 10, 2026
+Time of Request:         
+Date Schedule:           Aug 10, 2026
+Task:                    Other
+Reported Problem:        
+Please specify the task: ocular
+Attachments:             (none)
+------------------------------------------------
