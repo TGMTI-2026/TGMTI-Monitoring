@@ -567,6 +567,25 @@
         <button class="btn btn-ghost" id="downloadAllBtn">Download all as .txt</button>
       </div>
       <div id="fsRows"></div>
+
+      <div class="page-head" style="margin-top:34px;">
+        <h2 style="font-size:17px;">GitHub Sync (optional)</h2>
+        <p>Also push each sheet's .txt file to a GitHub repository — a one-way backup you can view from anywhere. This does not pull changes back in; editing from another device stays separate from this one.</p>
+      </div>
+      <div class="form-card" style="max-width:520px;">
+        <div class="field-row">
+          <label><input type="checkbox" id="ghEnabled" style="width:auto;display:inline-block;vertical-align:middle;margin-right:6px;">Enable GitHub sync</label>
+        </div>
+        <div class="form-grid">
+          <div class="field-row"><label>GitHub username / org</label><input id="ghOwner" type="text" autocomplete="off"></div>
+          <div class="field-row"><label>Repository name</label><input id="ghRepo" type="text" autocomplete="off"></div>
+          <div class="field-row"><label>Branch</label><input id="ghBranch" type="text" value="main"></div>
+          <div class="field-row"><label>Personal Access Token</label><input id="ghToken" type="password" autocomplete="off"></div>
+        </div>
+        <p style="font-size:11.5px;color:var(--muted);margin:0 0 10px;">Use a fine-grained token scoped to only this repository with "Contents: Read and write" permission. The token is stored in this browser only.</p>
+        <div class="btn-row"><button class="btn btn-primary" id="ghSaveBtn">Save settings</button></div>
+        <div class="msg" id="ghMsg"></div>
+      </div>
     </section>
 
     <!-- USERS -->
@@ -997,17 +1016,73 @@ function buildTextDump(type, rows){
 }
 
 async function writeTextFile(type){
+  const rows = await loadAll(type);
+  const text = buildTextDump(type, rows);
+
   const handle = fileHandles[type];
-  if(!handle) return; // not connected yet — nothing to auto-sync
-  try{
-    const rows = await loadAll(type);
-    const text = buildTextDump(type, rows);
-    const writable = await handle.createWritable();
-    await writable.write(text);
-    await writable.close();
-  }catch(e){
-    console.warn('Auto-save to .txt failed for', type, e);
+  if(handle){
+    try{
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+    }catch(e){
+      console.warn('Auto-save to local .txt failed for', type, e);
+    }
   }
+
+  try{
+    const gh = await getGithubSettings();
+    if(gh && gh.enabled && gh.owner && gh.repo && gh.token){
+      await githubPushFile(gh, FS_FILENAMES[type], text, `Update ${FS_FILENAMES[type]} via TGMTI`);
+    }
+  }catch(e){
+    console.warn('GitHub sync failed for', type, e);
+  }
+}
+
+// --- GitHub Sync: push each sheet's .txt snapshot to a repo file via the
+// GitHub Contents API. One-way (app → GitHub); does not pull changes back.
+async function getGithubSettings(){
+  return (await storeGet('settings::github')) || null;
+}
+async function saveGithubSettings(settings){
+  await storeSet('settings::github', settings);
+}
+async function githubGetFileSha(gh, path){
+  const url = `https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(gh.branch || 'main')}`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${gh.token}`, 'Accept': 'application/vnd.github+json' }
+  });
+  if(res.status === 404) return null;
+  if(!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.message || ('GitHub API error ' + res.status));
+  }
+  const data = await res.json();
+  return data.sha;
+}
+async function githubPushFile(gh, path, content, message){
+  const sha = await githubGetFileSha(gh, path);
+  const body = {
+    message: message || ('Update ' + path),
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: gh.branch || 'main'
+  };
+  if(sha) body.sha = sha;
+  const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}/contents/${encodeURIComponent(path)}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${gh.token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.message || ('GitHub API error ' + res.status));
+  }
+  return res.json();
 }
 
 async function connectFile(type){
@@ -1097,7 +1172,45 @@ function renderFileSync(){
         <div class="fs-status ${connected?'connected':''}">${statusText}</div>
       </div>`;
   }).join('');
+
+  getGithubSettings().then(gh=>{
+    document.getElementById('ghEnabled').checked = !!(gh && gh.enabled);
+    document.getElementById('ghOwner').value = (gh && gh.owner) || '';
+    document.getElementById('ghRepo').value = (gh && gh.repo) || '';
+    document.getElementById('ghBranch').value = (gh && gh.branch) || 'main';
+    document.getElementById('ghToken').value = (gh && gh.token) || '';
+  });
 }
+document.getElementById('ghSaveBtn').addEventListener('click', async ()=>{
+  const msgEl = document.getElementById('ghMsg');
+  const settings = {
+    enabled: document.getElementById('ghEnabled').checked,
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    branch: document.getElementById('ghBranch').value.trim() || 'main',
+    token: document.getElementById('ghToken').value.trim()
+  };
+  if(settings.enabled && (!settings.owner || !settings.repo || !settings.token)){
+    showMsg(msgEl, 'Please fill in username, repository, and token to enable GitHub sync.', 'err');
+    return;
+  }
+  await saveGithubSettings(settings);
+  if(!settings.enabled){
+    showMsg(msgEl, 'Settings saved. GitHub sync is off.', 'ok');
+    return;
+  }
+  showMsg(msgEl, 'Saving and testing connection…', 'ok');
+  try{
+    await githubGetFileSha(settings, FS_FILENAMES.customer);
+    showMsg(msgEl, 'Settings saved — connected to GitHub successfully.', 'ok');
+  }catch(e){
+    if(window.location.protocol === 'file:'){
+      showMsg(msgEl, 'Saved. Note: GitHub sync can\'t be tested from a local file — open this app at its live GitHub Pages URL (https://...) to test and use it.', 'err');
+    } else {
+      showMsg(msgEl, 'Saved, but the test connection failed: ' + e.message, 'err');
+    }
+  }
+});
 
 /* ============== nav ============== */
 document.getElementById('navTabs').addEventListener('click', e=>{
