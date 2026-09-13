@@ -1,0 +1,59 @@
+CUSTOMER INFORMATION — TGMTI
+Generated: 9/10/2026, 3:17:48 PM
+Records: 6
+================================================
+
+Customer Name:  Aboitiz InfraCapital
+Contact Person: Julius Romo
+Contact Number: 
+Email:          
+Designation:    
+Address:        
+Contract:       
+Attachments:    (none)
+------------------------------------------------
+Customer Name:  Philippine Airport Ground Support Solutions, In (PAGSS)
+Contact Person: Danilo Alingod
+Contact Number: +63 968 647 0123
+Email:          
+Designation:    
+Address:        
+Contract:       
+Attachments:    (none)
+------------------------------------------------
+Customer Name:  Philippine Skylanders Inc.
+Contact Person: Chienee Legazpi
+Contact Number: +63 917 701 7407
+Email:          
+Designation:    
+Address:        
+Contract:       
+Attachments:    (none)
+------------------------------------------------
+Customer Name:  Plaza de Zamboanga Hotel and Casino
+Contact Person: Engr. Mark Anthony Sebastian
+Contact Number: 0917 305 5550
+Email:          
+Designation:    Engr
+Address:        Barangay Pasonanca (KM 5), Zamboanga City, Philippines
+Contract:       
+Attachments:    (none)
+------------------------------------------------
+Customer Name:  Shangri-La Group
+Contact Person: Adrian Picar
+Contact Number: 
+Email:          
+Designation:    
+Address:        
+Contract:       
+Attachments:    (none)
+------------------------------------------------
+Customer Name:  Shangri-La The Fort
+Contact Person: Capt Picar
+Contact Number: 
+Email:          
+Designation:    
+Address:        30th Street, corner 5th Ave, Taguig, 1634 Metro Manila
+Contract:       
+Attachments:    (none)
+------------------------------------------------
